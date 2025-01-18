@@ -9,7 +9,7 @@ import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SimpleGame extends JPanel implements ActionListener, KeyListener {
+public class BallGame extends JPanel implements ActionListener, KeyListener {
 
     private Timer timer;
     private int playerX = 50;
@@ -23,7 +23,7 @@ public class SimpleGame extends JPanel implements ActionListener, KeyListener {
     private int timeLeft = 30; // 30 seconds timer
     private List<Rectangle> obstacles;
 
-    public SimpleGame() {
+    public BallGame() {
         this.setFocusable(true);
         this.setPreferredSize(new Dimension(600, 400));
         this.setBackground(Color.BLACK);
@@ -48,10 +48,49 @@ public class SimpleGame extends JPanel implements ActionListener, KeyListener {
 
     private void generateObstacles() {
         obstacles.clear();
-        int numObstacles = level + 2;
+        int numObstacles = level + 2;  // Number of obstacles based on level
+        System.out.println("Generating " + numObstacles + " obstacles...");
+
         for (int i = 0; i < numObstacles; i++) {
-            int x = (int) (Math.random() * (this.getWidth() - 50));
-            int y = (int) (Math.random() * (this.getHeight() - 50));
+            int x = 0, y = 0;
+            boolean overlap;
+            int retryCount = 0;
+            int maxRetries = 100;  // Max attempts to find a non-overlapping position
+
+            // Try generating a new obstacle that doesn't overlap with existing ones
+            do {
+                overlap = false;
+                x = (int) (Math.random() * (this.getWidth() - 50));  // Corrected obstacle width is 50
+                y = (int) (Math.random() * (this.getHeight() - 50));  // Corrected obstacle height is 50
+
+                // Ensure that x and y are within bounds
+                if (x < 0) x = 0;
+                if (y < 0) y = 0;
+
+                // Check if the new obstacle intersects with any existing obstacles
+                for (Rectangle existingObstacle : obstacles) {
+                    if (new Rectangle(x, y, 50, 50).intersects(existingObstacle)) {
+                        overlap = true;
+                        break;  // Stop checking if an overlap is found
+                    }
+                }
+
+                // Log the position attempt and overlap status
+                System.out.println("Attempting position: (" + x + ", " + y + "), Overlap: " + overlap);
+
+                retryCount++;
+
+                if (retryCount > maxRetries) {
+                    System.out.println("Max retries reached, placing obstacle anyway at: (" + x + ", " + y + ")");
+                    overlap = false;  // Break the loop if we reach max retries
+                }
+
+            } while (overlap);  // Retry if there is an overlap
+
+            // Log success
+            System.out.println("Placed obstacle at: (" + x + ", " + y + ")");
+
+            // Add the non-overlapping obstacle to the list
             obstacles.add(new Rectangle(x, y, 50, 50));
         }
     }
@@ -87,17 +126,35 @@ public class SimpleGame extends JPanel implements ActionListener, KeyListener {
         repaint();
     }
 
+    private void generateTarget() {
+        boolean overlap;
+        do {
+            // Generate a random target position
+            targetX = (int) (Math.random() * (this.getWidth() - targetSize));
+            targetY = (int) (Math.random() * (this.getHeight() - targetSize));
+
+            overlap = false;
+
+            // Check if the target overlaps with any obstacle
+            for (Rectangle obstacle : obstacles) {
+                if (new Rectangle(targetX, targetY, targetSize, targetSize).intersects(obstacle)) {
+                    overlap = true;
+                    break;  // Stop checking if an overlap is found
+                }
+            }
+        } while (overlap);  // Retry if there is an overlap
+    }
+
     private void checkCollision() {
         if (playerX < targetX + targetSize && playerX + 20 > targetX &&
                 playerY < targetY + targetSize && playerY + 20 > targetY) {
             score++;
-            targetX = (int) (Math.random() * (this.getWidth() - targetSize));
-            targetY = (int) (Math.random() * (this.getHeight() - targetSize));
+            generateTarget();  // Ensure target doesn't overlap with obstacles
 
             if (score % 5 == 0) {
                 level++;
                 playerSpeed++;
-                generateObstacles();
+                generateObstacles();  // Generate new obstacles at a higher level
             }
         }
 
@@ -140,8 +197,8 @@ public class SimpleGame extends JPanel implements ActionListener, KeyListener {
     }
 
     public static void main(String[] args) {
-        JFrame frame = new JFrame("Simple Game with Obstacles and Levels");
-        SimpleGame game = new SimpleGame();
+        JFrame frame = new JFrame("Ball Game with Obstacles and Levels");
+        BallGame game = new BallGame();
         frame.add(game);
         frame.pack();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
